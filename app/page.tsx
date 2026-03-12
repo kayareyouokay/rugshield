@@ -2,12 +2,12 @@
 
 import { useMemo, useState } from "react";
 import {
-  Activity,
-  CircleGauge,
+  AlertTriangle,
   Droplets,
   LayoutDashboard,
   ShieldAlert,
   Users,
+  UsersRound,
 } from "lucide-react";
 
 import { ResultCard } from "@/components/result-card";
@@ -37,19 +37,6 @@ export default function Home() {
   const stats = useMemo(
     () => [
       {
-        title: "Risk Score",
-        value: typeof result?.score === "number" ? `${result.score}/100` : "--",
-        icon: <CircleGauge className="h-4 w-4" />,
-      },
-      {
-        title: "Confidence",
-        value:
-          typeof result?.confidence === "number"
-            ? `${Math.round(result.confidence * 100)}%`
-            : "--",
-        icon: <Activity className="h-4 w-4" />,
-      },
-      {
         title: "Liquidity",
         value: formatCurrency(result?.liquidity),
         icon: <Droplets className="h-4 w-4" />,
@@ -58,6 +45,16 @@ export default function Home() {
         title: "Top Holder",
         value: formatPercent(result?.topHolderPercent),
         icon: <Users className="h-4 w-4" />,
+      },
+      {
+        title: "Top 10 Holders",
+        value: formatPercent(result?.top10HolderPercent),
+        icon: <UsersRound className="h-4 w-4" />,
+      },
+      {
+        title: "Warnings",
+        value: typeof result?.warnings?.length === "number" ? String(result.warnings.length) : "--",
+        icon: <AlertTriangle className="h-4 w-4" />,
       },
     ],
     [result],
@@ -69,7 +66,7 @@ export default function Home() {
       <div className="pointer-events-none absolute right-0 top-32 h-80 w-80 rounded-full bg-cyan-500/10 blur-3xl" />
 
       <div className="relative mx-auto grid w-full max-w-7xl gap-6 lg:grid-cols-[260px_1fr]">
-        <aside className="space-y-6">
+        <aside>
           <Card className="animate-rise-in bg-zinc-950/90">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-zinc-100">
@@ -88,29 +85,9 @@ export default function Home() {
                 <p className="mb-1 text-xs uppercase tracking-wide text-zinc-500">Model Inputs</p>
                 <p>Contract security, liquidity depth, holder concentration, honeypot simulation.</p>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="animate-rise-in [animation-delay:80ms]">
-            <CardHeader>
-              <CardTitle className="text-base text-zinc-100">Status</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div className="flex items-center justify-between rounded-md border border-zinc-800 bg-zinc-900/70 px-3 py-2">
-                <span className="text-zinc-400">Network</span>
-                <span className="text-zinc-200">Ethereum</span>
-              </div>
-              <div className="flex items-center justify-between rounded-md border border-zinc-800 bg-zinc-900/70 px-3 py-2">
-                <span className="text-zinc-400">Holders</span>
-                <span className="text-zinc-200">
-                  {result?.sources?.holdersProvider || "Awaiting scan"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-md border border-zinc-800 bg-zinc-900/70 px-3 py-2">
-                <span className="text-zinc-400">Honeypot</span>
-                <span className="text-zinc-200">
-                  {result?.sources?.honeypotMethod || "Awaiting scan"}
-                </span>
+              <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 px-3 py-2">
+                <p className="mb-1 text-xs uppercase tracking-wide text-zinc-500">Network</p>
+                <p>Ethereum Mainnet</p>
               </div>
             </CardContent>
           </Card>

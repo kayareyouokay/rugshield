@@ -24,7 +24,7 @@ export function ResultCard({ result }: ResultCardProps) {
             Analysis Details
           </CardTitle>
           <CardDescription>
-            Run a scan to see contract details, risk warnings, and source diagnostics.
+            Run a scan to see source diagnostics and warning-level details.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -37,27 +37,22 @@ export function ResultCard({ result }: ResultCardProps) {
         <CardTitle className="break-all text-base text-zinc-100 sm:text-lg">
           {result.contract || "Unknown Contract"}
         </CardTitle>
-        <CardDescription>Token diagnostics</CardDescription>
+        <CardDescription>Diagnostics and warning feed</CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-5">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-3">
-            <p className="mb-1 text-xs uppercase tracking-wide text-zinc-500">Liquidity</p>
-            <p className="text-xl font-semibold text-zinc-100">${result.liquidity.toLocaleString()}</p>
-          </div>
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-3">
-            <p className="mb-1 text-xs uppercase tracking-wide text-zinc-500">Top Holder</p>
-            <p className="text-xl font-semibold text-zinc-100">
-              {result.topHolderPercent?.toFixed(2) ?? "0.00"}%
-            </p>
-          </div>
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-3">
-            <p className="mb-1 text-xs uppercase tracking-wide text-zinc-500">Top 10 Holders</p>
-            <p className="text-xl font-semibold text-zinc-100">
-              {result.top10HolderPercent?.toFixed(2) ?? "0.00"}%
-            </p>
-          </div>
+        <div className="flex flex-wrap gap-2 border-b border-zinc-800 pb-4">
+          <Badge variant="outline" className="gap-1">
+            <Wallet className="h-3.5 w-3.5" /> Holder model
+          </Badge>
+          <Badge variant="outline">Liquidity depth</Badge>
+          <Badge variant="outline">Contract checks</Badge>
+          {result.sources?.holdersProvider ? (
+            <Badge variant="secondary">Holders via {result.sources.holdersProvider}</Badge>
+          ) : null}
+          {result.sources?.honeypotMethod ? (
+            <Badge variant="secondary">Honeypot {result.sources.honeypotMethod}</Badge>
+          ) : null}
         </div>
 
         <div className="space-y-2">
@@ -80,23 +75,6 @@ export function ResultCard({ result }: ResultCardProps) {
               <span>No high-risk warnings found.</span>
             </div>
           )}
-        </div>
-
-        <div className="flex flex-wrap gap-2 border-t border-zinc-800 pt-4">
-          <Badge variant="outline" className="gap-1">
-            <Wallet className="h-3.5 w-3.5" /> Holder model
-          </Badge>
-          <Badge variant="outline">Liquidity depth</Badge>
-          <Badge variant="outline">Contract checks</Badge>
-          {typeof result.confidence === "number" ? (
-            <Badge variant="secondary">Confidence {Math.round(result.confidence * 100)}%</Badge>
-          ) : null}
-          {result.sources?.holdersProvider ? (
-            <Badge variant="secondary">Holders via {result.sources.holdersProvider}</Badge>
-          ) : null}
-          {result.sources?.honeypotMethod ? (
-            <Badge variant="secondary">Honeypot {result.sources.honeypotMethod}</Badge>
-          ) : null}
         </div>
       </CardContent>
     </Card>
