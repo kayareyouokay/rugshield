@@ -79,19 +79,68 @@ function clampConfidence(value: number) {
   return Math.max(0.1, Math.min(1, Number(value.toFixed(2))));
 }
 
-function extractFunctionNamesFromAbi(abiRaw: string): string[] {
-  if (!abiRaw.startsWith("[")) {
-    return [];
+function parseAbiItems(
+  abiRaw: string,
+): { parsed: boolean; items: Array<{ type?: string; name?: string }> } {
+  let candidate: unknown = abiRaw.trim();
+
+  for (let depth = 0; depth < 3; depth += 1) {
+    if (Array.isArray(candidate)) {
+      return { parsed: true, items: candidate as Array<{ type?: string; name?: string }> };
+    }
+
+    if (
+      typeof candidate === "object" &&
+      candidate &&
+      "abi" in candidate &&
+      Array.isArray((candidate as { abi?: unknown }).abi)
+    ) {
+      return {
+        parsed: true,
+        items: (candidate as { abi: Array<{ type?: string; name?: string }> }).abi,
+      };
+    }
+
+    if (typeof candidate !== "string") {
+      break;
+    }
+
+    const trimmed = candidate.trim();
+    if (!trimmed) {
+      break;
+    }
+
+    if (!["[", "{", "\""].includes(trimmed[0])) {
+      break;
+    }
+
+    try {
+      candidate = JSON.parse(trimmed);
+    } catch {
+      break;
+    }
   }
 
-  try {
-    const parsed = JSON.parse(abiRaw) as Array<{ type?: string; name?: string }>;
-    return parsed
-      .filter((item) => item.type === "function" && typeof item.name === "string")
-      .map((item) => item.name!.toLowerCase());
-  } catch {
-    return [];
+  return { parsed: false, items: [] };
+}
+
+function extractFunctionNamesFromAbi(
+  abiRaw: string,
+): { parsed: boolean; functionNames: string[] } {
+  const parsedAbi = parseAbiItems(abiRaw);
+
+  if (!parsedAbi.parsed) {
+    return { parsed: false, functionNames: [] };
   }
+
+  const functionNames = parsedAbi.items
+    .filter((item) => item.type === "function" && typeof item.name === "string")
+    .map((item) => item.name!.toLowerCase());
+
+  return {
+    parsed: true,
+    functionNames,
+  };
 }
 
 function sourceHasPrivilegeHints(sourceCode: string) {
@@ -311,8 +360,10 @@ export async function analyzeContractRisk(
     confidence -= 0.15;
   }
 
-  const functionNames = extractFunctionNamesFromAbi(abiRaw);
-  if (functionNames.length === 0 && isVerified) {
+  const abiAnalysis = extractFunctionNamesFromAbi(abiRaw);
+  const functionNames = abiAnalysis.functionNames;
+
+  if (!abiAnalysis.parsed && isVerified) {
     warnings.push("Verified contract ABI was not parsable.");
     risk += 6;
     confidence -= 0.05;
