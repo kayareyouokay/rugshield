@@ -55,6 +55,10 @@ COVALENT_API_KEY=
 COVALENT_CHAIN_NAME=eth-mainnet
 ETHPLORER_API_KEY=
 ETH_RPC_URL=
+ANALYSIS_TIMEOUT_CONTRACT_MS=4000
+ANALYSIS_TIMEOUT_LIQUIDITY_MS=3000
+ANALYSIS_TIMEOUT_HOLDERS_MS=3500
+ANALYSIS_TIMEOUT_HONEYPOT_MS=2500
 ```
 
 Notes:
@@ -62,6 +66,7 @@ Notes:
 - `COVALENT_CHAIN_NAME` defaults to `eth-mainnet`.
 - If `COVALENT_API_KEY` is missing/unavailable, holder concentration falls back to Ethplorer.
 - If `ETHERSCAN_API_KEY` is missing, source-verification checks run in reduced-confidence mode.
+- The `ANALYSIS_TIMEOUT_*` values cap module latency and return partial results faster when a provider is slow.
 
 ## Run
 

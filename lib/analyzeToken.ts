@@ -33,6 +33,37 @@ function round(value: number) {
   return Math.round(value);
 }
 
+function getTimeoutMs(envKey: string, fallbackMs: number) {
+  const configured = Number(process.env[envKey]);
+  if (Number.isFinite(configured) && configured >= 500) {
+    return Math.round(configured);
+  }
+
+  return fallbackMs;
+}
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  fallbackValue: T,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const timeoutPromise = new Promise<T>((resolve) => {
+    timeoutId = setTimeout(() => {
+      resolve(fallbackValue);
+    }, timeoutMs);
+  });
+
+  const result = await Promise.race([promise, timeoutPromise]);
+
+  if (timeoutId) {
+    clearTimeout(timeoutId);
+  }
+
+  return result;
+}
+
 export async function analyzeToken(address: string): Promise<AnalyzeTokenResult> {
   if (!isAddress(address)) {
     return {
@@ -56,19 +87,78 @@ export async function analyzeToken(address: string): Promise<AnalyzeTokenResult>
     };
   }
 
-  const [contractAnalysis, liquidityAnalysis, holderAnalysis] = await Promise.all([
+  const contractTimeoutMs = getTimeoutMs("ANALYSIS_TIMEOUT_CONTRACT_MS", 4_000);
+  const liquidityTimeoutMs = getTimeoutMs("ANALYSIS_TIMEOUT_LIQUIDITY_MS", 3_000);
+  const holdersTimeoutMs = getTimeoutMs("ANALYSIS_TIMEOUT_HOLDERS_MS", 3_500);
+  const honeypotTimeoutMs = getTimeoutMs("ANALYSIS_TIMEOUT_HONEYPOT_MS", 2_500);
+
+  const contractPromise = withTimeout(
     analyzeContractRisk(address),
+    contractTimeoutMs,
+    {
+      contractName: "Unknown Contract",
+      warnings: [`Contract analysis timed out after ${contractTimeoutMs}ms.`],
+      risk: 18,
+      confidence: 0.2,
+      isVerified: false,
+      isProxy: false,
+      hasMintFunction: false,
+      hasOwnerPrivileges: false,
+    },
+  );
+
+  const liquidityPromise = withTimeout(
     analyzeLiquidityRisk(address),
+    liquidityTimeoutMs,
+    {
+      liquidityUsd: 0,
+      warnings: [`Liquidity analysis timed out after ${liquidityTimeoutMs}ms.`],
+      risk: 30,
+      confidence: 0.2,
+      hasPool: false,
+    },
+  );
+
+  const holdersPromise = withTimeout(
     analyzeHolderConcentration(address),
+    holdersTimeoutMs,
+    {
+      topHolderPercent: 0,
+      top10HolderPercent: 0,
+      warnings: [`Holder analysis timed out after ${holdersTimeoutMs}ms.`],
+      risk: 15,
+      confidence: 0.2,
+      provider: "none" as const,
+    },
+  );
+
+  const [contractAnalysis, liquidityAnalysis] = await Promise.all([
+    contractPromise,
+    liquidityPromise,
   ]);
 
-  const honeypotAnalysis = await analyzeHoneypotHeuristic({
-    address,
-    isProxy: contractAnalysis.isProxy,
-    hasMintFunction: contractAnalysis.hasMintFunction,
-    hasOwnerPrivileges: contractAnalysis.hasOwnerPrivileges,
-    liquidityUsd: liquidityAnalysis.liquidityUsd,
-  });
+  const honeypotPromise = withTimeout(
+    analyzeHoneypotHeuristic({
+      address,
+      isProxy: contractAnalysis.isProxy,
+      hasMintFunction: contractAnalysis.hasMintFunction,
+      hasOwnerPrivileges: contractAnalysis.hasOwnerPrivileges,
+      liquidityUsd: liquidityAnalysis.liquidityUsd,
+    }),
+    honeypotTimeoutMs,
+    {
+      warnings: [`Honeypot analysis timed out after ${honeypotTimeoutMs}ms.`],
+      risk: 8,
+      confidence: 0.3,
+      heuristicTag: "heuristic" as const,
+      verdict: "unknown" as const,
+    },
+  );
+
+  const [holderAnalysis, honeypotAnalysis] = await Promise.all([
+    holdersPromise,
+    honeypotPromise,
+  ]);
 
   const weights = {
     contract: 0.35,
