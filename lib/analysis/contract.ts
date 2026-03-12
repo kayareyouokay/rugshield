@@ -243,8 +243,8 @@ export async function analyzeContractRisk(
       address,
       apikey: apiKey,
     },
-    retries: 0,
-    timeoutMs: 2_500,
+    retries: 2,
+    timeoutMs: 8_000,
   });
 
   if (!etherscan.ok) {

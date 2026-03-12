@@ -96,8 +96,8 @@ export async function analyzeHoneypotHeuristic(
     params: {
       address: input.address,
     },
-    timeoutMs: 2_000,
-    retries: 0,
+    timeoutMs: 7_000,
+    retries: 1,
   });
 
   if (!response.ok) {

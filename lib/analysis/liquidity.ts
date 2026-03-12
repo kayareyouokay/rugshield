@@ -36,8 +36,8 @@ export async function analyzeLiquidityRisk(
   const response = await getJson<DexscreenerResponse>({
     source: "Dexscreener",
     url: `https://api.dexscreener.com/latest/dex/tokens/${address}`,
-    timeoutMs: 2_200,
-    retries: 0,
+    timeoutMs: 8_000,
+    retries: 2,
   });
 
   if (!response.ok) {

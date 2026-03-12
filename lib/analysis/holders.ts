@@ -106,8 +106,8 @@ async function fetchFromCovalent(
       "page-size": 100,
       "page-number": 0,
     },
-    timeoutMs: 2_400,
-    retries: 0,
+    timeoutMs: 8_000,
+    retries: 2,
   });
 
   if (!response.ok) {
@@ -163,8 +163,8 @@ async function fetchFromEthplorer(
       apiKey,
       limit: 10,
     },
-    timeoutMs: 2_200,
-    retries: 0,
+    timeoutMs: 8_000,
+    retries: 2,
   });
 
   if (!response.ok) {
