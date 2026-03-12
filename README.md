@@ -1,18 +1,18 @@
 # RugShield
 
-RugShield is a Next.js 14 + TypeScript Web3 dashboard that scans ERC-20 token addresses and estimates rug-pull risk.
+RugShield is a Next.js 14 + TypeScript token risk analyzer for Ethereum ERC-20 contracts.
 
-## Features
+## What it analyzes
 
-- Contract analysis via Etherscan (verification, proxy, mint, owner controls)
-- Liquidity checks via Dexscreener
-- Holder concentration checks via Ethplorer
-- Honeypot heuristic placeholder module for future simulation
-- Aggregated risk score from 0 to 100
+- Contract risk via Etherscan V2 metadata + on-chain contract probing
+- Liquidity risk via Dexscreener pool depth and liquidity quality signals
+- Holder concentration via Covalent (primary) with Ethplorer fallback
+- Honeypot behavior via Honeypot.is simulation with heuristic fallback
+- Weighted risk score (0-100) with confidence score
 
 ## API
 
-`POST /api/analyze`
+### `POST /api/analyze`
 
 Request body:
 
@@ -20,25 +20,48 @@ Request body:
 { "address": "0x..." }
 ```
 
-Response:
+Success response shape:
 
 ```json
 {
-  "score": 62,
+  "score": 41,
+  "confidence": 0.86,
   "contract": "ExampleToken",
   "liquidity": 128394,
-  "warnings": ["Liquidity is below $50,000."]
+  "warnings": ["Liquidity is below $500,000."],
+  "topHolderPercent": 24.1,
+  "top10HolderPercent": 70.44,
+  "breakdown": {
+    "contract": 28,
+    "liquidity": 18,
+    "holders": 14,
+    "honeypot": 22
+  },
+  "sources": {
+    "holdersProvider": "covalent",
+    "honeypotMethod": "api"
+  }
 }
 ```
 
-## Environment Variables
+## Environment variables
 
-Use `.env.local`:
+Set these in `.env.local`:
 
 ```bash
 ETHERSCAN_API_KEY=
+ETHERSCAN_CHAIN_ID=1
 COVALENT_API_KEY=
+COVALENT_CHAIN_NAME=eth-mainnet
+ETHPLORER_API_KEY=
+ETH_RPC_URL=
 ```
+
+Notes:
+- `ETH_RPC_URL` is optional but recommended for production stability.
+- `COVALENT_CHAIN_NAME` defaults to `eth-mainnet`.
+- If `COVALENT_API_KEY` is missing/unavailable, holder concentration falls back to Ethplorer.
+- If `ETHERSCAN_API_KEY` is missing, source-verification checks run in reduced-confidence mode.
 
 ## Run
 
@@ -46,3 +69,10 @@ COVALENT_API_KEY=
 npm install
 npm run dev
 ```
+
+## Production behavior
+
+- Request validation for malformed/invalid addresses
+- In-memory rate limiting on `/api/analyze`
+- Upstream request retries + timeouts
+- No-store API response caching headers

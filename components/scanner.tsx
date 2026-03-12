@@ -8,10 +8,22 @@ import { Input } from "@/components/ui/input";
 
 export interface AnalysisResponse {
   score: number;
+  confidence?: number;
   contract: string;
   liquidity: number;
   warnings: string[];
   topHolderPercent?: number;
+  top10HolderPercent?: number;
+  breakdown?: {
+    contract: number;
+    liquidity: number;
+    holders: number;
+    honeypot: number;
+  };
+  sources?: {
+    holdersProvider: string;
+    honeypotMethod: string;
+  };
 }
 
 interface ScannerProps {
@@ -51,17 +63,35 @@ export function Scanner({ onResult }: ScannerProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-3 sm:flex-row">
+      <form
+        className="flex flex-col gap-3 sm:flex-row"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleScan();
+        }}
+      >
         <Input
-          placeholder="Paste ERC-20 token address"
+          placeholder="Paste ERC-20 token contract (0x...)"
           value={address}
           onChange={(event) => setAddress(event.target.value)}
+          className="h-11 bg-zinc-950"
         />
-        <Button onClick={handleScan} disabled={loading} className="sm:w-32">
-          {loading ? "Scanning..." : "Scan"}
+        <Button
+          type="submit"
+          disabled={loading}
+          className="h-11 min-w-36"
+        >
+          {loading ? "Scanning..." : "Scan Token"}
         </Button>
-      </div>
-      {error ? <p className="text-sm text-rose-400">{error}</p> : null}
+      </form>
+      <p className="text-xs text-zinc-400">
+        Checks contract risk, liquidity depth, holder concentration, and honeypot behavior.
+      </p>
+      {error ? (
+        <p className="rounded-lg border border-rose-900/70 bg-rose-950/50 px-3 py-2 text-sm text-rose-300">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
