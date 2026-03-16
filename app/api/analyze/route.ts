@@ -21,6 +21,17 @@ interface AnalyzeStatusResponse {
   };
 }
 
+type AnalyzeCacheState = "miss" | "hit" | "deduped" | "stale";
+
+interface AnalyzeResponseMeta {
+  requestId: string;
+  analyzedAddress: string;
+  generatedAt: string;
+  durationMs: number;
+  cache: AnalyzeCacheState;
+  stale: boolean;
+}
+
 interface RateLimitEntry {
   count: number;
   resetAt: number;
@@ -213,6 +224,26 @@ function buildStatusPayload(): AnalyzeStatusResponse {
   };
 }
 
+function withMeta(
+  result: AnalyzeTokenResult,
+  address: string,
+  requestId: string,
+  cache: AnalyzeCacheState,
+  startedAt: number,
+) {
+  return {
+    ...result,
+    meta: {
+      requestId,
+      analyzedAddress: address,
+      generatedAt: new Date().toISOString(),
+      durationMs: Math.max(1, Date.now() - startedAt),
+      cache,
+      stale: cache === "stale",
+    } satisfies AnalyzeResponseMeta,
+  };
+}
+
 export async function GET() {
   const requestId = crypto.randomUUID();
   cleanupAnalysisCache(Date.now());
@@ -239,6 +270,7 @@ export async function OPTIONS() {
 
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
+  const startedAt = Date.now();
   cleanupAnalysisCache(Date.now());
 
   const clientId = getClientIdentifier(request);
@@ -300,11 +332,12 @@ export async function POST(request: Request) {
     );
   }
 
+  const normalizedAddress = getAddress(address);
+
   try {
-    const normalizedAddress = getAddress(address);
     const { result, cacheState } = await getOrCreateAnalysis(normalizedAddress);
 
-    return NextResponse.json(result, {
+    return NextResponse.json(withMeta(result, normalizedAddress, requestId, cacheState, startedAt), {
       status: 200,
       headers: withRequestIdHeaders(requestId, {
         "Cache-Control": "no-store",
@@ -312,20 +345,25 @@ export async function POST(request: Request) {
       }),
     });
   } catch {
-    const normalizedAddress = getAddress(address);
     const stale = getStaleCachedResult(normalizedAddress);
 
     if (stale) {
       return NextResponse.json(
-        {
-          ...stale,
-          warnings: Array.from(
-            new Set([
-              ...stale.warnings,
-              "Returned stale cached result due to temporary upstream failures.",
-            ]),
-          ),
-        },
+        withMeta(
+          {
+            ...stale,
+            warnings: Array.from(
+              new Set([
+                ...stale.warnings,
+                "Returned stale cached result due to temporary upstream failures.",
+              ]),
+            ),
+          },
+          normalizedAddress,
+          requestId,
+          "stale",
+          startedAt,
+        ),
         {
           status: 200,
           headers: withRequestIdHeaders(requestId, {
