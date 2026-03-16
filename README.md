@@ -12,6 +12,26 @@ RugShield is a Next.js 14 + TypeScript token risk analyzer for Ethereum ERC-20 c
 
 ## API
 
+### `GET /api/analyze`
+
+Operational status payload for health checks and lightweight diagnostics:
+
+```json
+{
+  "status": "ok",
+  "service": "rugshield-analyze",
+  "timestamp": "2026-03-16T12:34:56.000Z",
+  "cache": {
+    "entries": 4,
+    "inFlight": 0
+  },
+  "rateLimit": {
+    "windowMs": 60000,
+    "maxRequestsPerWindow": 45
+  }
+}
+```
+
 ### `POST /api/analyze`
 
 Request body:
@@ -40,6 +60,14 @@ Success response shape:
   "sources": {
     "holdersProvider": "covalent",
     "honeypotMethod": "api"
+  },
+  "meta": {
+    "requestId": "7f6c3c7a-3aa9-4bc3-b964-5dc3239ed138",
+    "analyzedAddress": "0x0000000000000000000000000000000000000000",
+    "generatedAt": "2026-03-16T12:34:56.000Z",
+    "durationMs": 912,
+    "cache": "miss",
+    "stale": false
   }
 }
 ```
@@ -78,5 +106,8 @@ npm run dev
 - Fault-isolated analyzers with safe fallbacks (single-provider failures no longer fail entire scan)
 - Short-lived in-memory analysis cache with in-flight de-duplication for repeated addresses
 - Stale-result fallback when upstream providers are temporarily unavailable
+- API operational status endpoint: `GET /api/analyze`
 - Per-request trace header: `x-rugshield-request-id`
+- Analysis response metadata payload via `meta` (cache mode + timing)
 - No-store API response caching headers
+- Scanner UX includes request cancellation + recent-scan history
