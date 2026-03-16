@@ -7,6 +7,20 @@ interface AnalyzeRequestBody {
   address?: string;
 }
 
+interface AnalyzeStatusResponse {
+  status: "ok";
+  service: "rugshield-analyze";
+  timestamp: string;
+  cache: {
+    entries: number;
+    inFlight: number;
+  };
+  rateLimit: {
+    windowMs: number;
+    maxRequestsPerWindow: number;
+  };
+}
+
 interface RateLimitEntry {
   count: number;
   resetAt: number;
@@ -181,6 +195,46 @@ function withRequestIdHeaders(
     "x-rugshield-request-id": requestId,
     ...extras,
   };
+}
+
+function buildStatusPayload(): AnalyzeStatusResponse {
+  return {
+    status: "ok",
+    service: "rugshield-analyze",
+    timestamp: new Date().toISOString(),
+    cache: {
+      entries: analysisCache.size,
+      inFlight: inFlightAnalysis.size,
+    },
+    rateLimit: {
+      windowMs: WINDOW_MS,
+      maxRequestsPerWindow: MAX_REQUESTS_PER_WINDOW,
+    },
+  };
+}
+
+export async function GET() {
+  const requestId = crypto.randomUUID();
+  cleanupAnalysisCache(Date.now());
+
+  return NextResponse.json(buildStatusPayload(), {
+    status: 200,
+    headers: withRequestIdHeaders(requestId, {
+      "Cache-Control": "no-store",
+    }),
+  });
+}
+
+export async function OPTIONS() {
+  const requestId = crypto.randomUUID();
+
+  return new NextResponse(null, {
+    status: 204,
+    headers: withRequestIdHeaders(requestId, {
+      "Allow": "GET, POST, OPTIONS",
+      "Cache-Control": "no-store",
+    }),
+  });
 }
 
 export async function POST(request: Request) {
