@@ -53,7 +53,31 @@ export function ResultCard({ result }: ResultCardProps) {
           {result.sources?.honeypotMethod ? (
             <Badge variant="secondary">Honeypot {result.sources.honeypotMethod}</Badge>
           ) : null}
+          {result.meta?.cache ? (
+            <Badge variant="secondary">Cache {result.meta.cache}</Badge>
+          ) : null}
         </div>
+
+        {result.meta ? (
+          <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-3 text-xs text-zinc-300">
+            <p className="mb-2 text-xs uppercase tracking-wide text-zinc-500">Scan Metadata</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <p>
+                <span className="text-zinc-500">Analyzed:</span> {result.meta.analyzedAddress}
+              </p>
+              <p>
+                <span className="text-zinc-500">Duration:</span> {result.meta.durationMs}ms
+              </p>
+              <p>
+                <span className="text-zinc-500">Generated:</span>{" "}
+                {new Date(result.meta.generatedAt).toLocaleString()}
+              </p>
+              <p className="break-all">
+                <span className="text-zinc-500">Request ID:</span> {result.meta.requestId}
+              </p>
+            </div>
+          </div>
+        ) : null}
 
         <div className="space-y-2">
           <p className="text-sm font-medium text-zinc-200">Warnings</p>

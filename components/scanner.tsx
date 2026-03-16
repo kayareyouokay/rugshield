@@ -24,6 +24,14 @@ export interface AnalysisResponse {
     holdersProvider: string;
     honeypotMethod: string;
   };
+  meta?: {
+    requestId: string;
+    analyzedAddress: string;
+    generatedAt: string;
+    durationMs: number;
+    cache: "miss" | "hit" | "deduped" | "stale";
+    stale: boolean;
+  };
 }
 
 interface ScannerProps {
