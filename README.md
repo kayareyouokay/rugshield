@@ -75,4 +75,8 @@ npm run dev
 - Request validation for malformed/invalid addresses
 - In-memory rate limiting on `/api/analyze`
 - Upstream request retries + timeouts
+- Fault-isolated analyzers with safe fallbacks (single-provider failures no longer fail entire scan)
+- Short-lived in-memory analysis cache with in-flight de-duplication for repeated addresses
+- Stale-result fallback when upstream providers are temporarily unavailable
+- Per-request trace header: `x-rugshield-request-id`
 - No-store API response caching headers
