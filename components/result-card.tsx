@@ -14,6 +14,59 @@ interface ResultCardProps {
   result: AnalysisResponse | null;
 }
 
+type WarningSeverity = "high" | "medium" | "info";
+
+function classifyWarningSeverity(warning: string): WarningSeverity {
+  const normalized = warning.toLowerCase();
+
+  if (
+    normalized.includes("honeypot") ||
+    normalized.includes("high-severity") ||
+    normalized.includes("exceeds 60%") ||
+    normalized.includes("unverified") ||
+    normalized.includes("mint") ||
+    normalized.includes("owner-controlled")
+  ) {
+    return "high";
+  }
+
+  if (
+    normalized.includes("proxy") ||
+    normalized.includes("below $100,000") ||
+    normalized.includes("below $25,000") ||
+    normalized.includes("under 3%") ||
+    normalized.includes("tax is above")
+  ) {
+    return "medium";
+  }
+
+  return "info";
+}
+
+function warningStyle(severity: WarningSeverity) {
+  if (severity === "high") {
+    return "border-rose-900/70 bg-rose-950/50 text-rose-300";
+  }
+
+  if (severity === "medium") {
+    return "border-amber-900/70 bg-amber-950/50 text-amber-300";
+  }
+
+  return "border-zinc-700 bg-zinc-900/60 text-zinc-300";
+}
+
+function severityRank(severity: WarningSeverity) {
+  if (severity === "high") {
+    return 0;
+  }
+
+  if (severity === "medium") {
+    return 1;
+  }
+
+  return 2;
+}
+
 export function ResultCard({ result }: ResultCardProps) {
   if (!result) {
     return (
@@ -30,6 +83,17 @@ export function ResultCard({ result }: ResultCardProps) {
       </Card>
     );
   }
+
+  const orderedWarnings = [...result.warnings].sort((left, right) => {
+    const leftSeverity = classifyWarningSeverity(left);
+    const rightSeverity = classifyWarningSeverity(right);
+    const bySeverity = severityRank(leftSeverity) - severityRank(rightSeverity);
+    if (bySeverity !== 0) {
+      return bySeverity;
+    }
+
+    return left.localeCompare(right);
+  });
 
   return (
     <Card className="animate-rise-in [animation-delay:80ms]">
@@ -81,17 +145,21 @@ export function ResultCard({ result }: ResultCardProps) {
 
         <div className="space-y-2">
           <p className="text-sm font-medium text-zinc-200">Warnings</p>
-          {result.warnings.length ? (
+          {orderedWarnings.length ? (
             <ul className="space-y-2">
-              {result.warnings.map((warning) => (
-                <li
-                  key={warning}
-                  className="flex items-start gap-2 rounded-lg border border-rose-900/70 bg-rose-950/40 px-3 py-2 text-sm text-rose-300"
-                >
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>{warning}</span>
-                </li>
-              ))}
+              {orderedWarnings.map((warning) => {
+                const severity = classifyWarningSeverity(warning);
+
+                return (
+                  <li
+                    key={warning}
+                    className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-sm ${warningStyle(severity)}`}
+                  >
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>{warning}</span>
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <div className="flex items-center gap-2 rounded-lg border border-emerald-900/70 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
