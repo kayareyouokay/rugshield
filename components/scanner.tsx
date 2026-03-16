@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 
 import { Button } from "@/components/ui/button";
@@ -42,30 +42,67 @@ export function Scanner({ onResult }: ScannerProps) {
   const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const activeRequest = useRef<AbortController | null>(null);
+  const activeRequestVersion = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      activeRequest.current?.abort();
+    };
+  }, []);
 
   const handleScan = async () => {
-    if (!address.trim()) {
+    const scanAddress = address.trim();
+
+    if (!scanAddress) {
       setError("Enter a token address to scan.");
       onResult(null);
       return;
     }
+
+    activeRequest.current?.abort();
+    const controller = new AbortController();
+    activeRequest.current = controller;
+    activeRequestVersion.current += 1;
+    const requestVersion = activeRequestVersion.current;
 
     setError(null);
     setLoading(true);
 
     try {
       const { data } = await axios.post<AnalysisResponse>("/api/analyze", {
-        address: address.trim(),
+        address: scanAddress,
+      }, {
+        signal: controller.signal,
       });
+
+      if (requestVersion !== activeRequestVersion.current) {
+        return;
+      }
+
       onResult(data);
     } catch (requestError) {
+      if (
+        axios.isAxiosError(requestError) &&
+        (requestError.code === "ERR_CANCELED" || requestError.message === "canceled")
+      ) {
+        return;
+      }
+
       const message = axios.isAxiosError<{ error?: string }>(requestError)
         ? requestError.response?.data?.error || "Scan failed."
         : "Scan failed.";
+
+      if (requestVersion !== activeRequestVersion.current) {
+        return;
+      }
+
       setError(message);
       onResult(null);
     } finally {
-      setLoading(false);
+      if (requestVersion === activeRequestVersion.current) {
+        setLoading(false);
+      }
     }
   };
 
