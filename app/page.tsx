@@ -13,6 +13,7 @@ import {
 import { ResultCard } from "@/components/result-card";
 import { RiskMeter } from "@/components/risk-meter";
 import { type AnalysisResponse, Scanner } from "@/components/scanner";
+import { HistoryPanel } from "@/components/history-panel";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 function formatCurrency(value: number | undefined) {
@@ -142,6 +143,8 @@ export default function Home() {
             />
             <ResultCard result={result} />
           </div>
+
+          <HistoryPanel latestResult={result} />
         </section>
       </div>
     </main>
