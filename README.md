@@ -9,6 +9,8 @@ RugShield is a Next.js 14 + TypeScript token risk analyzer for Ethereum ERC-20 c
 - Holder concentration via Covalent (primary) with Ethplorer fallback
 - Honeypot behavior via Honeypot.is simulation with heuristic fallback
 - Weighted risk score (0-100) with confidence score
+- Client-side scan history snapshots for quick comparison between recent analyses
+- Input normalization, local recent-scan recall, and example token shortcuts in the scanner
 
 ## API
 
@@ -23,7 +25,10 @@ Operational status payload for health checks and lightweight diagnostics:
   "timestamp": "2026-03-16T12:34:56.000Z",
   "cache": {
     "entries": 4,
-    "inFlight": 0
+    "inFlight": 0,
+    "staleEligible": 1,
+    "ttlMs": 45000,
+    "staleMs": 300000
   },
   "rateLimit": {
     "windowMs": 60000,
@@ -31,6 +36,15 @@ Operational status payload for health checks and lightweight diagnostics:
   }
 }
 ```
+
+Response headers now include:
+
+- `x-rugshield-request-id`
+- `x-rugshield-cache` on analysis responses
+- `x-rugshield-duration-ms`
+- `x-rugshield-rate-limit`
+- `x-rugshield-rate-limit-remaining`
+- `x-rugshield-rate-limit-reset`
 
 ### `POST /api/analyze`
 
@@ -98,6 +112,13 @@ npm install
 npm run dev
 ```
 
+Validation:
+
+```bash
+npm run lint
+npm run typecheck
+```
+
 ## Production behavior
 
 - Request validation for malformed/invalid addresses
@@ -109,5 +130,6 @@ npm run dev
 - API operational status endpoint: `GET /api/analyze`
 - Per-request trace header: `x-rugshield-request-id`
 - Analysis response metadata payload via `meta` (cache mode + timing)
+- Rate-limit and duration response headers for API diagnostics
 - No-store API response caching headers
-- Scanner UX includes request cancellation + recent-scan history
+- Scanner UX includes example shortcuts, checksum normalization, clearable recent scans, and local scan history snapshots
