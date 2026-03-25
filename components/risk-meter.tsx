@@ -1,6 +1,7 @@
 import { AlertTriangle, ShieldCheck, ShieldQuestion } from "lucide-react";
 
 import { Progress } from "@/components/ui/progress";
+import { getPrimaryRiskFactor, getRiskBadgeClass, getRiskLabel } from "@/lib/risk";
 
 interface RiskMeterProps {
   score: number | null;
@@ -11,18 +12,6 @@ interface RiskMeterProps {
     holders: number;
     honeypot: number;
   } | null;
-}
-
-function getRiskLabel(score: number) {
-  if (score < 35) return "Low";
-  if (score < 70) return "Medium";
-  return "High";
-}
-
-function getRiskBadgeClass(score: number) {
-  if (score < 35) return "border-emerald-900/60 bg-emerald-950/60 text-emerald-300";
-  if (score < 70) return "border-amber-900/60 bg-amber-950/60 text-amber-300";
-  return "border-rose-900/60 bg-rose-950/60 text-rose-300";
 }
 
 export function RiskMeter({ score, confidence, breakdown }: RiskMeterProps) {
@@ -45,6 +34,7 @@ export function RiskMeter({ score, confidence, breakdown }: RiskMeterProps) {
 
   const label = getRiskLabel(score);
   const riskIcon = score < 35 ? <ShieldCheck className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />;
+  const primaryFactor = getPrimaryRiskFactor(breakdown);
 
   const breakdownRows = breakdown
     ? [
@@ -80,7 +70,10 @@ export function RiskMeter({ score, confidence, breakdown }: RiskMeterProps) {
       <Progress value={score} />
 
       {typeof confidence === "number" ? (
-        <p className="mt-3 text-xs text-zinc-500">Model confidence: {Math.round(confidence * 100)}%</p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">
+          <p>Model confidence: {Math.round(confidence * 100)}%</p>
+          {primaryFactor ? <p>Primary driver: {primaryFactor.label}</p> : null}
+        </div>
       ) : null}
 
       {breakdownRows.length ? (

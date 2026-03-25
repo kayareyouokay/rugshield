@@ -9,62 +9,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  classifyWarningSeverity,
+  getPrimaryRiskFactor,
+  getRiskBadgeClass,
+  getRiskLabel,
+  severityRank,
+  summarizeWarnings,
+  warningStyle,
+} from "@/lib/risk";
 
 interface ResultCardProps {
   result: AnalysisResponse | null;
-}
-
-type WarningSeverity = "high" | "medium" | "info";
-
-function classifyWarningSeverity(warning: string): WarningSeverity {
-  const normalized = warning.toLowerCase();
-
-  if (
-    normalized.includes("honeypot") ||
-    normalized.includes("high-severity") ||
-    normalized.includes("exceeds 60%") ||
-    normalized.includes("unverified") ||
-    normalized.includes("mint") ||
-    normalized.includes("owner-controlled")
-  ) {
-    return "high";
-  }
-
-  if (
-    normalized.includes("proxy") ||
-    normalized.includes("below $100,000") ||
-    normalized.includes("below $25,000") ||
-    normalized.includes("under 3%") ||
-    normalized.includes("tax is above")
-  ) {
-    return "medium";
-  }
-
-  return "info";
-}
-
-function warningStyle(severity: WarningSeverity) {
-  if (severity === "high") {
-    return "border-rose-900/70 bg-rose-950/50 text-rose-300";
-  }
-
-  if (severity === "medium") {
-    return "border-amber-900/70 bg-amber-950/50 text-amber-300";
-  }
-
-  return "border-zinc-700 bg-zinc-900/60 text-zinc-300";
-}
-
-function severityRank(severity: WarningSeverity) {
-  if (severity === "high") {
-    return 0;
-  }
-
-  if (severity === "medium") {
-    return 1;
-  }
-
-  return 2;
 }
 
 export function ResultCard({ result }: ResultCardProps) {
@@ -94,14 +50,21 @@ export function ResultCard({ result }: ResultCardProps) {
 
     return left.localeCompare(right);
   });
+  const warningSummary = summarizeWarnings(orderedWarnings);
+  const primaryFactor = getPrimaryRiskFactor(result.breakdown);
 
   return (
     <Card className="animate-rise-in [animation-delay:80ms]">
       <CardHeader>
-        <CardTitle className="break-all text-base text-zinc-100 sm:text-lg">
-          {result.contract || "Unknown Contract"}
-        </CardTitle>
-        <CardDescription>Diagnostics and warning feed</CardDescription>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle className="break-all text-base text-zinc-100 sm:text-lg">
+              {result.contract || "Unknown Contract"}
+            </CardTitle>
+            <CardDescription>Diagnostics and warning feed</CardDescription>
+          </div>
+          <Badge className={getRiskBadgeClass(result.score)}>{getRiskLabel(result.score)} risk</Badge>
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-5">
@@ -120,6 +83,27 @@ export function ResultCard({ result }: ResultCardProps) {
           {result.meta?.cache ? (
             <Badge variant="secondary">Cache {result.meta.cache}</Badge>
           ) : null}
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-3">
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Warning mix</p>
+            <p className="mt-1 text-sm text-zinc-200">
+              {warningSummary.high} high, {warningSummary.medium} medium, {warningSummary.info} info
+            </p>
+          </div>
+          <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-3">
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Primary factor</p>
+            <p className="mt-1 text-sm text-zinc-200">{primaryFactor?.label || "Insufficient data"}</p>
+          </div>
+          <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-3">
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Confidence</p>
+            <p className="mt-1 text-sm text-zinc-200">
+              {typeof result.confidence === "number"
+                ? `${Math.round(result.confidence * 100)}%`
+                : "Unavailable"}
+            </p>
+          </div>
         </div>
 
         {result.meta ? (
