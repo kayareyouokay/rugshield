@@ -14,6 +14,9 @@ interface AnalyzeStatusResponse {
   cache: {
     entries: number;
     inFlight: number;
+    staleEligible: number;
+    ttlMs: number;
+    staleMs: number;
   };
   rateLimit: {
     windowMs: number;
@@ -119,6 +122,30 @@ function secondsUntilReset(clientId: string) {
   return Math.max(1, Math.ceil((resetAt - Date.now()) / 1_000));
 }
 
+function getRateLimitStatus(clientId: string) {
+  const entry = rateLimitStore.get(clientId);
+  const remaining = entry
+    ? Math.max(0, MAX_REQUESTS_PER_WINDOW - Math.min(entry.count, MAX_REQUESTS_PER_WINDOW))
+    : MAX_REQUESTS_PER_WINDOW;
+
+  return {
+    remaining,
+    resetInSeconds: secondsUntilReset(clientId),
+  };
+}
+
+function countStaleEligibleEntries(now: number) {
+  let total = 0;
+
+  for (const entry of analysisCache.values()) {
+    if (entry.expiresAt <= now && entry.staleUntil > now) {
+      total += 1;
+    }
+  }
+
+  return total;
+}
+
 function cleanupAnalysisCache(now: number) {
   if (!analysisCache.size) {
     return;
@@ -208,7 +235,19 @@ function withRequestIdHeaders(
   };
 }
 
+function buildRateLimitHeaders(clientId: string): Record<string, string> {
+  const status = getRateLimitStatus(clientId);
+
+  return {
+    "x-rugshield-rate-limit": String(MAX_REQUESTS_PER_WINDOW),
+    "x-rugshield-rate-limit-remaining": String(status.remaining),
+    "x-rugshield-rate-limit-reset": String(status.resetInSeconds),
+  };
+}
+
 function buildStatusPayload(): AnalyzeStatusResponse {
+  const now = Date.now();
+
   return {
     status: "ok",
     service: "rugshield-analyze",
@@ -216,6 +255,9 @@ function buildStatusPayload(): AnalyzeStatusResponse {
     cache: {
       entries: analysisCache.size,
       inFlight: inFlightAnalysis.size,
+      staleEligible: countStaleEligibleEntries(now),
+      ttlMs: ANALYSIS_CACHE_TTL_MS,
+      staleMs: ANALYSIS_CACHE_STALE_MS,
     },
     rateLimit: {
       windowMs: WINDOW_MS,
@@ -285,6 +327,7 @@ export async function POST(request: Request) {
         headers: withRequestIdHeaders(requestId, {
           "Retry-After": String(secondsUntilReset(clientId)),
           "Cache-Control": "no-store",
+          ...buildRateLimitHeaders(clientId),
         }),
       },
     );
@@ -301,6 +344,7 @@ export async function POST(request: Request) {
         status: 400,
         headers: withRequestIdHeaders(requestId, {
           "Cache-Control": "no-store",
+          ...buildRateLimitHeaders(clientId),
         }),
       },
     );
@@ -315,6 +359,7 @@ export async function POST(request: Request) {
         status: 400,
         headers: withRequestIdHeaders(requestId, {
           "Cache-Control": "no-store",
+          ...buildRateLimitHeaders(clientId),
         }),
       },
     );
@@ -327,6 +372,7 @@ export async function POST(request: Request) {
         status: 400,
         headers: withRequestIdHeaders(requestId, {
           "Cache-Control": "no-store",
+          ...buildRateLimitHeaders(clientId),
         }),
       },
     );
@@ -342,6 +388,8 @@ export async function POST(request: Request) {
       headers: withRequestIdHeaders(requestId, {
         "Cache-Control": "no-store",
         "x-rugshield-cache": cacheState,
+        "x-rugshield-duration-ms": String(Math.max(1, Date.now() - startedAt)),
+        ...buildRateLimitHeaders(clientId),
       }),
     });
   } catch {
@@ -369,6 +417,8 @@ export async function POST(request: Request) {
           headers: withRequestIdHeaders(requestId, {
             "Cache-Control": "no-store",
             "x-rugshield-cache": "stale",
+            "x-rugshield-duration-ms": String(Math.max(1, Date.now() - startedAt)),
+            ...buildRateLimitHeaders(clientId),
           }),
         },
       );
@@ -380,6 +430,8 @@ export async function POST(request: Request) {
         status: 502,
         headers: withRequestIdHeaders(requestId, {
           "Cache-Control": "no-store",
+          "x-rugshield-duration-ms": String(Math.max(1, Date.now() - startedAt)),
+          ...buildRateLimitHeaders(clientId),
         }),
       },
     );
